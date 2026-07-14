@@ -1,3 +1,6 @@
+"use client"
+
+import { useForm } from "react-hook-form"
 import { cn } from "~/lib/utils"
 import { Button } from "~/components/ui/button"
 import {
@@ -8,13 +11,28 @@ import {
   FieldSeparator,
 } from "~/components/ui/field"
 import { Input } from "~/components/ui/input"
+import { trpc } from "~/trpc/client"
 
 export function SignupForm({
   className,
   ...props
-}: React.ComponentProps<"form">) {
+}: Omit<React.ComponentProps<"form">, "onSubmit">) {
+  const { mutateAsync: createUserWithEmailAndPasswordAsync } = trpc.auth.createUserWithEmailAndPassword.useMutation()
+
+  const { register, handleSubmit } = useForm()
+
+  const onSubmit = async (data: any) => {
+    console.log("Form values:", data)
+    const { id } = await createUserWithEmailAndPasswordAsync({ email: data.email, fullName: data.name, password: data.password })
+    console.log(`User created with ID: ${id}`)
+  }
+
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props}>
+    <form
+      className={cn("flex flex-col gap-6", className)}
+      onSubmit={handleSubmit(onSubmit)}
+      {...props}
+    >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Create your account</h1>
@@ -24,11 +42,11 @@ export function SignupForm({
         </div>
         <Field>
           <FieldLabel htmlFor="name">Full Name</FieldLabel>
-          <Input id="name" type="text" placeholder="John Doe" required />
+          <Input id="name" type="text" placeholder="John Doe" required {...register("name")} />
         </Field>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input id="email" type="email" placeholder="m@example.com" required />
+          <Input id="email" type="email" placeholder="m@example.com" required {...register("email")} />
           <FieldDescription>
             We&apos;ll use this to contact you. We will not share your email
             with anyone else.
@@ -36,14 +54,14 @@ export function SignupForm({
         </Field>
         <Field>
           <FieldLabel htmlFor="password">Password</FieldLabel>
-          <Input id="password" type="password" required />
+          <Input id="password" type="password" required {...register("password")} />
           <FieldDescription>
             Must be at least 8 characters long.
           </FieldDescription>
         </Field>
         <Field>
           <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-          <Input id="confirm-password" type="password" required />
+          <Input id="confirm-password" type="password" required {...register("confirmPassword")} />
           <FieldDescription>Please confirm your password.</FieldDescription>
         </Field>
         <Field>
