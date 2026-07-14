@@ -1,29 +1,42 @@
-import { db } from "@repo/database";
-import { usersTable } from "@repo/database/schema";
-import { env } from "../env";
-import { googleOAuth2Client } from "../clients/google-oauth";
-import { GetAuthenticationMethodOutputSchema } from "./model";
+import { type createUserWithEmailAndPasswordInputType, createUserWithEmailAndPasswordInput } from './model'
+import { db, eq } from "@repo/database"
+import { usersTable } from "@repo/database/models/user"
+import { randomBytes, createHmac } from "node:crypto"
+
 
 class UserService {
-  public async getAuthenticationMethods(): Promise<
-    ReadonlyArray<GetAuthenticationMethodOutputSchema>
-  > {
-    const supportedAuthenticationProviders: GetAuthenticationMethodOutputSchema[] = [];
 
-    const isGoogleConfigured = !!(env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET);
-
-    if (isGoogleConfigured) {
-      const url = googleOAuth2Client.generateAuthUrl();
-      supportedAuthenticationProviders.push({
-        provider: "GOOGLE_OAUTH",
-        displayName: "Google",
-        displayText: "Signin with Google",
-        authUrl: url,
-      });
+    private async getUserByEmail(email: string) {
+        const user = await db.select().from(usersTable).where(eq(usersTable.email, email));
+        if (!user || user.length === 0) {
+            return null
+        }
+        return user[0];
     }
 
-    return supportedAuthenticationProviders;
-  }
+    public async createUserWithEmailAndPassword(payload: createUserWithEmailAndPasswordInputType) {
+        const { fullName, email, password } = await createUserWithEmailAndPasswordInput.parseAsync(payload)
+
+        // Check if user is already existing or not
+        const existingUserWithEmail = await this.getUserByEmail(email)
+        if (existingUserWithEmail) throw new Error(`User with email ${email} already exists`)
+
+        // Calculate salt and hash
+        const salt = randomBytes(16).toString('hex')
+        const hash = createHmac('sha256', salt).update(password).digest('hex');
+
+        // Create User in the DB
+        const userInsertResult = await db.insert(usersTable).values({ email, fullName, password: hash, salt }).returning(
+            {
+                id: usersTable.id
+            }
+        )
+        if (!userInsertResult || userInsertResult.length === 0 || !userInsertResult[0]?.id) throw new Error(`Something went wrong while creating a user.`)
+
+        return {
+            id: userInsertResult[0].id
+        }
+    }
 }
 
 export default UserService;
