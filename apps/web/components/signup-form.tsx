@@ -11,13 +11,13 @@ import {
   FieldSeparator,
 } from "~/components/ui/field"
 import { Input } from "~/components/ui/input"
-import { trpc } from "~/trpc/client"
+import { useSignUp } from "~/hooks/api/auth"
 
 export function SignupForm({
   className,
   ...props
 }: Omit<React.ComponentProps<"form">, "onSubmit">) {
-  const { mutateAsync: createUserWithEmailAndPasswordAsync } = trpc.auth.createUserWithEmailAndPassword.useMutation()
+  const { createUserWithEmailAndPasswordAsync } = useSignUp()
 
   const { register, handleSubmit } = useForm()
 
