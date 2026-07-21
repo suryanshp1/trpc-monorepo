@@ -1,6 +1,6 @@
 import { publicProcedure, router } from "../../trpc";
 import { generatePath } from "../../utils/path-generator";
-import { createUserWithEmailAndPasswordInputModel, createUserWithEmailAndPasswordOutputModel } from "./model";
+import { createUserWithEmailAndPasswordInputModel, createUserWithEmailAndPasswordOutputModel, signInUserWithEmailAndPasswordInputModel, signInUserWithEmailAndPasswordOutputModel } from "./model";
 import { userService } from "../../services"
 import { setAutheticationCookie } from "../../utils/cookie";
 
@@ -23,6 +23,22 @@ export const authRouter = router({
 
       return {
         id
+      }
+    }),
+
+  signinUserWithEmailAndPassword: publicProcedure
+    .meta({ openapi: { method: "POST", path: getPath("/signinUserWithEmailAndPassword"), tags: TAGS } })
+    .input(signInUserWithEmailAndPasswordInputModel)
+    .output(signInUserWithEmailAndPasswordOutputModel)
+    .mutation(async ({ input, ctx }) => {
+      const { email, password } = input
+      const { id, token } = await userService.signInUserWithEmailAndPassword({ email, password })
+
+      setAutheticationCookie(ctx, token)
+
+      return {
+        id,
+        token
       }
     })
 });

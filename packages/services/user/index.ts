@@ -1,4 +1,4 @@
-import { type createUserWithEmailAndPasswordInputType, createUserWithEmailAndPasswordInput, type generateUserTokenPayloadType, generateUserTokenPayload } from './model'
+import { type createUserWithEmailAndPasswordInputType, createUserWithEmailAndPasswordInput, type generateUserTokenPayloadType, generateUserTokenPayload, type SigninUserWithEmailAndPasswordInputType, signinUserWithEmailAndPasswordInput } from './model'
 import { db, eq } from "@repo/database"
 import { usersTable } from "@repo/database/models/user"
 import { randomBytes, createHmac } from "node:crypto"
@@ -47,6 +47,31 @@ class UserService {
 
         return {
             id: userId,
+            token
+        }
+    }
+
+    public async signInUserWithEmailAndPassword(payload: SigninUserWithEmailAndPasswordInputType) {
+        const { email, password } = await signinUserWithEmailAndPasswordInput.parseAsync(payload)
+
+        const existingUser = await this.getUserByEmail(email)
+        if (!existingUser) throw new Error(`User with email ${email} does not exist`)
+
+        if (!existingUser.password || !existingUser.salt) {
+            throw new Error(`Invalid Authentication method`)
+        }
+
+        const salt = existingUser.salt
+        const hash = createHmac('sha256', salt).update(password).digest('hex')
+
+        if (hash !== existingUser.password) {
+            throw new Error(`Invalid address or password`)
+        }
+
+        const { token } = await this.generateUserToken({ id: existingUser.id })
+
+        return {
+            id: existingUser.id,
             token
         }
     }
